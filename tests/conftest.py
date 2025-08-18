@@ -7,7 +7,7 @@ from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sess
 from fastapi.testclient import TestClient
 
 from app.models import Base, User
-from app.repositories.user_repo import UserRepositorie
+from app.repositories import UserRepositorie
 from app.services.user_service import UserService
 from app.schemas import UserCreate
 

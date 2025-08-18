@@ -1,9 +1,13 @@
 import uuid
+from abc import ABC
 
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 
 from app.models import User
+
+class BaseRepositorie(ABC):
+    pass
 
 class UserRepositorie:
     def __init__(self, session: AsyncSession):

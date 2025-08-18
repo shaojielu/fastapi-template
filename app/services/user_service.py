@@ -5,7 +5,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.security import get_password_hash, verify_password
 from app.models import User
 from app.schemas import UserCreate, UserUpdate
-from app.repositories.user_repo import UserRepositorie
+from app.repositories import UserRepositorie
 
 class UserService:
     def __init__(self, user_repo: UserRepositorie, session: AsyncSession):

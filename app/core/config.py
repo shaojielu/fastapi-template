@@ -31,18 +31,19 @@ class Settings(BaseSettings):
     # --- Database Settings ---
     # 默认使用 PostgreSQL，请在 .env 文件中覆盖此配置
     # 示例: SQLALCHEMY_DATABASE_URI=postgresql+asyncpg://user:password@host:port/db
-    SQLALCHEMY_DATABASE_URI: str = "postgresql+asyncpg://postgres:postgres@postgres:5432/demo_db"
+    SQLALCHEMY_DATABASE_URI: str
     DB_ECHO: bool = False # Set to True to enable SQLAlchemy query logging (for development/debugging)
 
-    # --- Storage (S3) Settings ---
-    # S3 凭证和桶名称是必需的，请在 .env 文件中配置
+    # --- Storage Settings ---
+    STORAGE_PROVIDER :str
+    # S3
     S3_ACCESS_KEY: str = Field(..., description="REQUIRED: S3-compatible storage access key")
     S3_SECRET_KEY: str = Field(..., description="REQUIRED: S3-compatible storage secret key")
     S3_BUCKET_NAME: str
     S3_ENDPOINT_URL: str | None = Field(None, description="S3-compatible storage endpoint URL (e.g., for MinIO)")
     S3_REGION_NAME: str | None = Field("auto", description="S3-compatible storage region")
 
-    # 腾讯云对象存储
+    # COS
     TENCENT_COS_REGION:str
     TENCENT_COS_SECRET_ID:str
     TENCENT_COS_SECRET_KEY:str

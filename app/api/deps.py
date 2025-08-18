@@ -21,13 +21,14 @@ DBSessionDep = Annotated[AsyncSession, Depends(get_db)]
 
 
 def get_storage_service() -> BaseStorageService:
-    return StorageFactory.get_service("cos",settings)
+    return StorageFactory.get_service(settings)
 StorageServiceDep = Annotated[BaseStorageService, Depends(get_storage_service)]
 
 
 def get_user_repo(db: DBSessionDep) -> UserRepositorie:
     return UserRepositorie(session=db)
 UserRepositorieDep = Annotated[UserRepositorie,Depends(get_user_repo)]
+
 
 def get_user_service(db: DBSessionDep,user_repo:UserRepositorieDep) -> UserService:
     return UserService(session=db,user_repo=user_repo)

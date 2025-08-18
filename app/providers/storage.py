@@ -269,7 +269,8 @@ class StorageFactory:
     }
 
     @staticmethod
-    def get_service(provider: str, settings: Settings) -> BaseStorageService:
+    def get_service(settings: Settings) -> BaseStorageService:
+        provider = settings.STORAGE_PROVIDER
         service_class = StorageFactory._services.get(provider.lower())
         if not service_class:
             raise ValueError(
