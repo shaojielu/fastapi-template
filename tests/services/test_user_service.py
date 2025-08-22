@@ -1,15 +1,16 @@
-# tests/services/test_user_service.py
+import uuid
 
 import pytest
-import uuid
-from app.services.user_service import UserService
-from app.schemas import UserCreate, UserUpdate
+
 from app.core.security import verify_password # 导入密码验证函数以进行断言
-from tests.conftest import existing_user
+from app.models import User
+from app.schemas import UserCreate, UserUpdate
+from app.services.user_service import UserService
+
+
 
 # 使用此标记，pytest-asyncio 插件会自动处理文件中的所有异步测试函数
 pytestmark = pytest.mark.asyncio
-
 
 # --- 测试 create_user 方法 ---
 async def test_create_user_success(user_service: UserService):
@@ -36,7 +37,7 @@ async def test_create_user_success(user_service: UserService):
     assert await verify_password(user_in.password, created_user.hashed_password)
 
 
-async def test_create_user_with_duplicate_email_raises_error(user_service: UserService, existing_user):
+async def test_create_user_with_duplicate_email_raises_error(user_service: UserService, existing_user:User):
     """
     测试场景：当使用一个已存在的邮箱创建用户时，应抛出 ValueError。
     """
@@ -53,7 +54,7 @@ async def test_create_user_with_duplicate_email_raises_error(user_service: UserS
 
 
 # --- 测试 get_user_by_id 方法 ---
-async def test_get_user_by_id_success(user_service: UserService, existing_user):
+async def test_get_user_by_id_success(user_service: UserService, existing_user:User):
     """
     测试场景：根据 ID 成功获取一个用户。
     """
@@ -78,7 +79,7 @@ async def test_get_user_by_id_not_found_returns_none(user_service: UserService):
 
 
 # --- 测试 update_user 方法 ---
-async def test_update_user_success(user_service: UserService, existing_user):
+async def test_update_user_success(user_service: UserService, existing_user:User):
     """
     测试场景：成功更新用户的姓名和密码。
     """
@@ -94,8 +95,8 @@ async def test_update_user_success(user_service: UserService, existing_user):
 
     # 断言 (Assert)
     assert updated_user.id == existing_user.id
-    assert updated_user.full_name == "Updated Name"
-    assert updated_user.email == existing_user.email  # 邮箱应保持不变
+    assert updated_user.full_name == update_data.full_name
+    assert updated_user.email == update_data.email
     assert await verify_password("new-strong-password", updated_user.hashed_password)
 
 
@@ -111,7 +112,7 @@ async def test_update_user_not_found_raises_error(user_service: UserService):
         await user_service.update_user(uuid.uuid4(), update_data)
 
 
-async def test_update_user_to_duplicate_email_raises_error(user_service: UserService, existing_user):
+async def test_update_user_to_duplicate_email_raises_error(user_service: UserService, existing_user:User):
     """
     测试场景：尝试将一个用户的邮箱更新为另一个已存在的邮箱时，应抛出 ValueError。
     """
@@ -128,7 +129,7 @@ async def test_update_user_to_duplicate_email_raises_error(user_service: UserSer
 
 
 # --- 测试 authenticate_user 方法 ---
-async def test_authenticate_user_success(user_service: UserService, existing_user):
+async def test_authenticate_user_success(user_service: UserService,existing_user:User):
     """
     测试场景：使用正确的邮箱和密码成功认证用户。
     """
@@ -143,7 +144,7 @@ async def test_authenticate_user_success(user_service: UserService, existing_use
     assert authenticated_user.email == existing_user.email
 
 
-async def test_authenticate_user_wrong_password_returns_none(user_service: UserService, existing_user):
+async def test_authenticate_user_wrong_password_returns_none(user_service: UserService,existing_user:User):
     """
     测试场景：使用错误的密码进行认证时，应返回 None。
     """

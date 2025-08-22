@@ -12,7 +12,7 @@ from app.core.config import settings
 from app.models import User
 from app.schemas import TokenPayload
 from app.providers.storage import BaseStorageService,StorageFactory
-from app.repositories.user_repo import UserRepositorie
+from app.repositories import UserRepositorie
 from app.services.user_service import UserService
 
 

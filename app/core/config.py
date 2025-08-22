@@ -1,4 +1,3 @@
-import os
 import secrets
 
 from pydantic import Field
@@ -15,6 +14,10 @@ class Settings(BaseSettings):
     PROJECT_NAME: str = "Demo"
     SECRET_KEY: str = secrets.token_urlsafe(32)
     API_V1_STR: str = "/api/v1"
+
+
+    CELERY_BROKER:str
+    CELERY_BACKEND:str
 
     # --- Security Settings ---
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 11520
