@@ -40,7 +40,7 @@ jobs:
           source "$HOME/.cargo/env"
           uv run ruff check .
 
-      # 质量检查核心：运行单元测试
+      # 质量检查核心：运行单元测试并生成报告
       - name: Run tests
         env:
           SQLALCHEMY_DATABASE_URI: "sqlite+aiosqlite:///./test.db"
@@ -59,4 +59,13 @@ jobs:
           ACCESS_TOKEN_EXPIRE_MINUTES: "30"
         run: |
           source "$HOME/.cargo/env"
-          uv run pytest
+          uv run pytest --html=pytest-report.html --self-contained-html
+      - name: Upload test report
+        # `if: always()` 确保无论测试成功还是失败，报告都会被上传
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          # 产物的名称，您可以在 GitHub Actions 页面看到这个名字
+          name: pytest-report
+          # 要上传的檔案路径，与上面 --html 标志中定义的檔案名一致
+          path: pytest-report.html
