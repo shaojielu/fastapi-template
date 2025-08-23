@@ -9,8 +9,11 @@ wheels/
 # Virtual environments
 .venv
 
-.env
-
+# pytest
+.pytest_cache
 .coverage
+
+.env
+.ruff_cache
 .logs/
 *.log

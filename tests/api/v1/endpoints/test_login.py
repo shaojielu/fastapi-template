@@ -1,49 +1,60 @@
-from fastapi.testclient import TestClient
+# test_login.py
 
+from httpx import AsyncClient  # 明确导入 AsyncClient
 import pytest
 from app.core.config import settings
 from app.models import User
 
-def def_url(uri:str):
+
+def def_url(uri: str):
     return f"{settings.API_V1_STR}{uri}"
 
-pytestmark = pytest.mark.asyncio
 
-async def test_login_access_token(client: TestClient, existing_user: User):
+pytestmark = pytest.mark.anyio
+
+
+# 【修改】改为 async def，并更新 client 类型提示
+async def test_login_access_token(client: AsyncClient, existing_user: User):
     """
-    Test successful login and access token generation.
+    测试成功的登录和访问令牌生成。
     """
     login_data = {
         "username": existing_user.email,
-        "password": "a-plain-password",  # The plain password from conftest
+        "password": "a-plain-password",
     }
-    response = client.post(def_url("/login/access-token"), data=login_data)
+    # 【修改】使用 await
+    response = await client.post(def_url("/login/access-token"), data=login_data)
     response_json = response.json()
     assert response.status_code == 200
     assert "access_token" in response_json
     assert response_json["token_type"] == "bearer"
 
-async def test_login_incorrect_password(client: TestClient, existing_user: User):
+
+# 【修改】改为 async def，并更新 client 类型提示
+async def test_login_incorrect_password(client: AsyncClient, existing_user: User):
     """
-    Test login with an incorrect password.
+    测试使用不正确的密码登录。
     """
     login_data = {
         "username": existing_user.email,
         "password": "wrong-password",
     }
-    response = client.post(def_url("/login/access-token"), data=login_data)
+    # 【修改】使用 await
+    response = await client.post(def_url("/login/access-token"), data=login_data)
     assert response.status_code == 401
     assert response.json() == {"detail": "Incorrect username or password"}
 
-async def test_login_nonexistent_user(client: TestClient):
+
+# 【修改】改为 async def，并更新 client 类型提示
+async def test_login_nonexistent_user(client: AsyncClient):
     """
-    Test login with a nonexistent user.
+    测试使用不存在的用户登录。
     """
     login_data = {
         "username": "nonexistent@example.com",
         "password": "any-password",
     }
-    response = client.post(def_url("/login/access-token"), data=login_data)
-    # 将 400 改为 401
+    # 【修改】使用 await
+    response = await client.post(def_url("/login/access-token"), data=login_data)
     assert response.status_code == 401
     assert "Incorrect username or password" in response.json()["detail"]

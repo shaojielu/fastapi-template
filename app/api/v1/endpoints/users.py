@@ -7,6 +7,7 @@ from app.schemas import UserCreate, UserPublic, UserUpdate
 
 router = APIRouter()
 
+
 @router.post("/", response_model=UserPublic)
 async def create_user(
     user_create: UserCreate,
@@ -24,6 +25,7 @@ async def create_user(
             detail=str(e),
         )
 
+
 @router.get("/me", response_model=UserPublic)
 async def read_user_me(
     current_user: CurrentActiveUserDep,
@@ -32,6 +34,7 @@ async def read_user_me(
     获取当前用户信息。
     """
     return current_user
+
 
 @router.put("/{user_id}", response_model=UserPublic)
 async def update_user(
@@ -44,10 +47,17 @@ async def update_user(
     更新用户信息。
     """
     if user_id != current_user.id:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not authorized to update this user")
-    
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Not authorized to update this user",
+        )
+
     try:
-        updated_user = await user_service.update_user(user_id=user_id, user_update=user_update)
+        updated_user = await user_service.update_user(
+            user_id=user_id, user_update=user_update
+        )
         return updated_user
     except Exception as e:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="更新用户异常")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail="更新用户异常"
+        )

@@ -1,0 +1,47 @@
+name: Code Quality CI
+
+on:
+  # 在对 main 分支的 push 和 pull_request 时触发
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  lint-and-test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install uv
+        run: curl -LsSf https://astral.sh/uv/install.sh | sh
+
+      # 关键点：这一步利用了 uv 自身的缓存，速度很快
+      - name: Install dependencies
+        run: |
+          source "$HOME/.cargo/env"
+          uv sync --dev
+
+      # 快速失败第一关：代码格式
+      - name: Check code formatting
+        run: |
+          source "$HOME/.cargo/env"
+          uv run ruff format --check .
+
+      # 快速失败第二关：Linter 检查
+      - name: Lint code
+        run: |
+          source "$HOME/.cargo/env"
+          uv run ruff check .
+
+      # 质量检查核心：运行单元测试
+      - name: Run tests
+        run: |
+          source "$HOME/.cargo/env"
+          uv run pytest

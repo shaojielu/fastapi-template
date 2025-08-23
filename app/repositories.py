@@ -1,31 +1,73 @@
 import uuid
-from abc import ABC
+from typing import Generic, TypeVar, Type
+from abc import ABC, abstractmethod
 
-from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models import User
+from app.models import User, Base  # 假设您的模型都继承自一个共同的 Base
 
-class BaseRepositorie(ABC):
-    pass
+# 创建一个类型变量，用于表示 SQLAlchemy 模型
+ModelType = TypeVar("ModelType", bound=Base)
 
-class UserRepositorie:
-    def __init__(self, session: AsyncSession):
+
+class BaseRepository(Generic[ModelType], ABC):
+    """一个通用的、与具体模型无关的 Repository 基类。"""
+
+    def __init__(self, model: Type[ModelType], session: AsyncSession):
+        """
+        初始化 Repository。
+
+        :param model: SQLAlchemy 模型类。
+        :param session: SQLAlchemy 的 AsyncSession 实例。
+        """
+        self.model = model
         self.session = session
 
-    async def get_by_id(self, user_id: uuid.UUID) -> User | None:
-        """根据ID获取用户。"""
-        return await self.session.get(User, user_id)
+    async def get_by_id(self, entity_id: uuid.UUID | int) -> ModelType | None:
+        """根据主键 ID 获取一个实体。"""
+        return await self.session.get(self.model, entity_id)
+
+    def add(self, entity: ModelType) -> None:
+        """
+        将一个实体对象添加到 session 中，准备创建。
+        """
+        self.session.add(entity)
+
+    async def delete(self, entity: ModelType) -> None:
+        """
+        从 session 中删除一个实体。
+        """
+        await self.session.delete(entity)
+
+    async def delete_by_id(self, entity_id: uuid.UUID | int) -> bool:
+        """
+        根据主键 ID 删除一个实体。
+
+        :return: 如果找到并删除了实体，则返回 True，否则返回 False。
+        """
+        entity = await self.get_by_id(entity_id)
+        if entity:
+            await self.session.delete(entity)
+            return True
+        return False
+
+
+class UserRepositorie(BaseRepository[User]):
+    def __init__(self, session: AsyncSession):
+        # 初始化父类，并传入 User 模型
+        super().__init__(User, session)
 
     async def get_by_email(self, email: str) -> User | None:
-        """根据邮箱获取用户。"""
-        query = select(User).where(User.email == email)
+        """
+        根据邮箱获取用户（这是 UserRepositorie 特有的方法）。
+        """
+        query = select(self.model).where(self.model.email == email)
         result = await self.session.execute(query)
         return result.scalar_one_or_none()
 
-    def add(self, user: User) -> None:
-        """将用户对象添加到session中，准备创建。"""
-        self.session.add(user)
+    # get_by_id, add 和 delete_by_id 方法现在都由 BaseRepository 继承而来
+    # 无需在此重复实现
 
     def update(self, user: User) -> User:
         """
@@ -34,10 +76,5 @@ class UserRepositorie:
         此方法可以为空，或用于更复杂逻辑。
         """
         # SQLAlchemy 的 session 会自动跟踪对象变化，所以通常不需要显式调用 update
+        # 这个方法可以保留，以备将来需要添加特殊逻辑
         return user
-
-    async def delete_by_id(self, user_id: uuid.UUID) -> None:
-        """根据ID删除用户。"""
-        user = await self.get_by_id(user_id)
-        if user:
-            await self.session.delete(user)

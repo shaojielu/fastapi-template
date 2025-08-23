@@ -1,22 +1,25 @@
 import io
 import asyncio
 from abc import ABC, abstractmethod
-from typing import Optional,Union,Dict,Type
+from typing import Optional, Union, Dict, Type
+import logging
 
 import aioboto3
 from botocore.client import Config
 from botocore.exceptions import ClientError
-from qcloud_cos import CosConfig,CosS3Client,CosServiceError
+from qcloud_cos import CosConfig, CosS3Client, CosServiceError
 
 from app.core.config import Settings
-from app.core.logger import logger
+
+logger = logging.getLogger(__name__)
+
 
 class BaseStorageService(ABC):
     """抽象存储服务基类，定义了所有存储服务必须实现的核心接口。"""
 
-    def __init__(self,settings:Settings):
+    def __init__(self, settings: Settings):
         self.settings = settings
-        
+
     @abstractmethod
     async def generate_presigned_url_for_download(
         self, key: str, expiration: int = 3600
@@ -43,11 +46,13 @@ class BaseStorageService(ABC):
     async def delete_file(self, key: str) -> bool:
         pass
 
+
 class S3StorageService(BaseStorageService):
     """
     一个使用 aioboto3 实现的、遵循最佳实践的异步S3存储服务。
     """
-    def __init__(self,settings : Settings):
+
+    def __init__(self, settings: Settings):
         super().__init__(settings)
         self.bucket_name = settings.S3_BUCKET_NAME
         self.session = aioboto3.Session(
@@ -56,17 +61,19 @@ class S3StorageService(BaseStorageService):
             region_name=settings.S3_REGION_NAME,
         )
         self.endpoint_url = settings.S3_ENDPOINT_URL
-        self.s3_config = Config(s3={'addressing_style': 'virtual'})
+        self.s3_config = Config(s3={"addressing_style": "virtual"})
 
     async def generate_presigned_url_for_download(
         self, key: str, expiration: int = 3600
     ) -> Optional[str]:
-        async with self.session.client("s3", endpoint_url=self.endpoint_url,config=self.s3_config) as s3_client:
+        async with self.session.client(
+            "s3", endpoint_url=self.endpoint_url, config=self.s3_config
+        ) as s3_client:
             try:
                 url = await s3_client.generate_presigned_url(
-                    ClientMethod='get_object',
-                    Params={'Bucket': self.bucket_name, 'Key': key},
-                    ExpiresIn=expiration
+                    ClientMethod="get_object",
+                    Params={"Bucket": self.bucket_name, "Key": key},
+                    ExpiresIn=expiration,
                 )
                 return url
             except ClientError:
@@ -80,46 +87,58 @@ class S3StorageService(BaseStorageService):
         异步生成用于 PUT 上传文件的预签名URL。
         相比POST，PUT方法更简单，客户端直接向此URL发起PUT请求即可。
         """
-        async with self.session.client("s3", endpoint_url=self.endpoint_url,config=self.s3_config) as s3_client:
+        async with self.session.client(
+            "s3", endpoint_url=self.endpoint_url, config=self.s3_config
+        ) as s3_client:
             try:
                 # 使用 generate_presigned_url 和 'put_object' 方法生成用于 PUT 上传的 URL
                 url = await s3_client.generate_presigned_url(
-                    ClientMethod='put_object',
+                    ClientMethod="put_object",
                     Params={
-                        'Bucket': self.bucket_name,
-                        'Key': key,
-                        'ContentType': content_type  # 在签名中指定Content-Type以增强安全性
+                        "Bucket": self.bucket_name,
+                        "Key": key,
+                        "ContentType": content_type,  # 在签名中指定Content-Type以增强安全性
                     },
-                    ExpiresIn=expiration
+                    ExpiresIn=expiration,
                 )
-                return {'url': url, 'fields': {}}
+                return {"url": url, "fields": {}}
             except ClientError:
                 logger.exception(f"Failed to generate PUT upload URL for key '{key}'")
                 return None
 
     async def download_stream(self, key: str) -> Optional[io.BytesIO]:
-        async with self.session.client("s3", endpoint_url=self.endpoint_url, config=self.s3_config) as s3_client:
+        async with self.session.client(
+            "s3", endpoint_url=self.endpoint_url, config=self.s3_config
+        ) as s3_client:
             try:
                 response = await s3_client.get_object(Bucket=self.bucket_name, Key=key)
-                async with response['Body'] as stream:
+                async with response["Body"] as stream:
                     content = await stream.read()
-                    logger.info(f"Successfully downloaded {len(content)} bytes from s3://{self.bucket_name}/{key}")
+                    logger.info(
+                        f"Successfully downloaded {len(content)} bytes from s3://{self.bucket_name}/{key}"
+                    )
                     return io.BytesIO(content)
             except ClientError as e:
-                if e.response['Error']['Code'] == 'NoSuchKey':
+                if e.response["Error"]["Code"] == "NoSuchKey":
                     logger.warning(f"File not found at s3://{self.bucket_name}/{key}")
                 else:
-                    logger.exception(f"Failed to download file from s3://{self.bucket_name}/{key}")
+                    logger.exception(
+                        f"Failed to download file from s3://{self.bucket_name}/{key}"
+                    )
                 return None
 
-    async def upload_stream(self, key: str, data: Union[bytes, io.BytesIO], content_type: str) -> bool:
-        async with self.session.client("s3", endpoint_url=self.endpoint_url, config=self.s3_config) as s3_client:
+    async def upload_stream(
+        self, key: str, data: Union[bytes, io.BytesIO], content_type: str
+    ) -> bool:
+        async with self.session.client(
+            "s3", endpoint_url=self.endpoint_url, config=self.s3_config
+        ) as s3_client:
             try:
                 if isinstance(data, bytes):
                     file_obj = io.BytesIO(data)
                 elif isinstance(data, io.BytesIO):
                     file_obj = data
-                    file_obj.seek(0) # Ensure stream is at the beginning
+                    file_obj.seek(0)  # Ensure stream is at the beginning
                 else:
                     raise TypeError("data must be bytes or io.BytesIO")
 
@@ -127,25 +146,33 @@ class S3StorageService(BaseStorageService):
                     file_obj,
                     self.bucket_name,
                     key,
-                    ExtraArgs={'ContentType': content_type}
+                    ExtraArgs={"ContentType": content_type},
                 )
-                logger.info(f"Successfully uploaded file to s3://{self.bucket_name}/{key}")
+                logger.info(
+                    f"Successfully uploaded file to s3://{self.bucket_name}/{key}"
+                )
                 return True
             except ClientError:
-                logger.exception(f"Failed to upload file to s3://{self.bucket_name}/{key}")
+                logger.exception(
+                    f"Failed to upload file to s3://{self.bucket_name}/{key}"
+                )
                 return False
 
     async def delete_file(self, key: str) -> bool:
-        async with self.session.client("s3", endpoint_url=self.endpoint_url,config=self.s3_config) as s3_client:
+        async with self.session.client(
+            "s3", endpoint_url=self.endpoint_url, config=self.s3_config
+        ) as s3_client:
             try:
                 await s3_client.delete_object(Bucket=self.bucket_name, Key=key)
                 logger.info(f"Successfully deleted s3://{self.bucket_name}/{key}")
                 return True
             except ClientError:
-                logger.exception(f"Failed to delete file at s3://{self.bucket_name}/{key}")
+                logger.exception(
+                    f"Failed to delete file at s3://{self.bucket_name}/{key}"
+                )
                 return False
 
-            
+
 class COSStorageService(BaseStorageService):
     """
     使用腾讯云对象存储(COS)的服务实现。
@@ -181,11 +208,13 @@ class COSStorageService(BaseStorageService):
                 self.client.get_presigned_download_url,
                 Bucket=self.bucket,
                 Key=key,
-                Expired=expiration
+                Expired=expiration,
             )
             return url
         except CosServiceError as e:
-            logger.error(f"Error generating download URL for {key}: {e.get_error_code()} - {e.get_error_msg()}")
+            logger.error(
+                f"Error generating download URL for {key}: {e.get_error_code()} - {e.get_error_msg()}"
+            )
             return None
 
     async def generate_presigned_url_for_upload(
@@ -201,12 +230,14 @@ class COSStorageService(BaseStorageService):
                 self.client.get_presigned_url,
                 Bucket=self.bucket,
                 Key=key,
-                Method='PUT',
-                Expired=expiration
+                Method="PUT",
+                Expired=expiration,
             )
-            return {'url': url, 'fields': {}}
+            return {"url": url, "fields": {}}
         except CosServiceError as e:
-            logger.error(f"Error generating PUT upload URL for {key}: {e.get_error_code()} - {e.get_error_msg()}")
+            logger.error(
+                f"Error generating PUT upload URL for {key}: {e.get_error_code()} - {e.get_error_msg()}"
+            )
             return None
 
     async def download_stream(self, key: str) -> Optional[io.BytesIO]:
@@ -215,17 +246,17 @@ class COSStorageService(BaseStorageService):
         """
         try:
             response = await self._run_in_thread(
-                self.client.get_object,
-                Bucket=self.bucket,
-                Key=key
+                self.client.get_object, Bucket=self.bucket, Key=key
             )
-            content = await self._run_in_thread(response['Body'].get_raw_stream().read)
+            content = await self._run_in_thread(response["Body"].get_raw_stream().read)
             return io.BytesIO(content)
         except CosServiceError as e:
-            if e.get_error_code() == 'NoSuchKey':
+            if e.get_error_code() == "NoSuchKey":
                 logger.warning(f"File not found on COS: {key}")
             else:
-                logger.error(f"Error downloading {key} from COS: {e.get_error_code()} - {e.get_error_msg()}")
+                logger.error(
+                    f"Error downloading {key} from COS: {e.get_error_code()} - {e.get_error_msg()}"
+                )
             return None
 
     async def upload_stream(
@@ -240,11 +271,13 @@ class COSStorageService(BaseStorageService):
                 Bucket=self.bucket,
                 Key=key,
                 Body=data,
-                ContentType=content_type
+                ContentType=content_type,
             )
-            return 'ETag' in response
+            return "ETag" in response
         except CosServiceError as e:
-            logger.error(f"Error uploading {key} to COS: {e.get_error_code()} - {e.get_error_msg()}")
+            logger.error(
+                f"Error uploading {key} to COS: {e.get_error_code()} - {e.get_error_msg()}"
+            )
             return False
 
     async def delete_file(self, key: str) -> bool:
@@ -253,19 +286,20 @@ class COSStorageService(BaseStorageService):
         """
         try:
             await self._run_in_thread(
-                self.client.delete_object,
-                Bucket=self.bucket,
-                Key=key
+                self.client.delete_object, Bucket=self.bucket, Key=key
             )
             return True
         except CosServiceError as e:
-            logger.error(f"Error deleting {key} from COS: {e.get_error_code()} - {e.get_error_msg()}")
+            logger.error(
+                f"Error deleting {key} from COS: {e.get_error_code()} - {e.get_error_msg()}"
+            )
             return False
+
 
 class StorageFactory:
     _services: Dict[str, Type[BaseStorageService]] = {
         "s3": S3StorageService,
-        "cos":COSStorageService,
+        "cos": COSStorageService,
     }
 
     @staticmethod
