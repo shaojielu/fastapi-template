@@ -25,7 +25,9 @@ async def login_access_token(
             form_data.username, form_data.password
         )
     except Exception as e:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail=str(e)
+        ) from e
 
     if not user:
         raise HTTPException(

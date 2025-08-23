@@ -23,7 +23,7 @@ async def create_user(
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=str(e),
-        )
+        ) from e
 
 
 @router.get("/me", response_model=UserPublic)
@@ -57,7 +57,7 @@ async def update_user(
             user_id=user_id, user_update=user_update
         )
         return updated_user
-    except Exception:
+    except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST, detail="更新用户异常"
-        )
+        ) from e
