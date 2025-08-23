@@ -73,7 +73,7 @@ class Settings(BaseSettings):
 
 
 if os.getenv("TESTING") == "1":
-    settings = Settings(_env_file=".env.example")
+    settings = Settings(_env_file=".env.test")
 else:
     settings = Settings()
 if __name__ == "__main__":
