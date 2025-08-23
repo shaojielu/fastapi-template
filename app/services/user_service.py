@@ -4,8 +4,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.security import get_password_hash, verify_password
 from app.models import User
-from app.schemas import UserCreate, UserUpdate
 from app.repositories import UserRepositorie
+from app.schemas import UserCreate, UserUpdate
 
 
 class UserService:
@@ -58,7 +58,7 @@ class UserService:
         for key, value in update_data.items():
             if key == "password" and value is not None:
                 # 业务安全逻辑：哈希新密码
-                setattr(user, "hashed_password", await get_password_hash(value))
+                user.hashed_password = await get_password_hash(value)
             else:
                 setattr(user, key, value)
 

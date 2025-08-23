@@ -1,7 +1,8 @@
 # test_login.py
 
-from httpx import AsyncClient  # 明确导入 AsyncClient
 import pytest
+from httpx import AsyncClient  # 明确导入 AsyncClient
+
 from app.core.config import settings
 from app.models import User
 

@@ -1,8 +1,7 @@
-import io
 import asyncio
-from abc import ABC, abstractmethod
-from typing import Optional, Union, Dict, Type
+import io
 import logging
+from abc import ABC, abstractmethod
 
 import aioboto3
 from botocore.client import Config
@@ -23,22 +22,22 @@ class BaseStorageService(ABC):
     @abstractmethod
     async def generate_presigned_url_for_download(
         self, key: str, expiration: int = 3600
-    ) -> Optional[str]:
+    ) -> str | None:
         pass
 
     @abstractmethod
     async def generate_presigned_url_for_upload(
         self, key: str, content_type: str, expiration: int = 3600
-    ) -> Optional[dict]:
+    ) -> dict | None:
         pass
 
     @abstractmethod
-    async def download_stream(self, key: str) -> Optional[io.BytesIO]:
+    async def download_stream(self, key: str) -> io.BytesIO | None:
         pass
 
     @abstractmethod
     async def upload_stream(
-        self, key: str, data: Union[bytes, io.BytesIO], content_type: str
+        self, key: str, data: bytes | io.BytesIO, content_type: str
     ) -> bool:
         pass
 
@@ -65,7 +64,7 @@ class S3StorageService(BaseStorageService):
 
     async def generate_presigned_url_for_download(
         self, key: str, expiration: int = 3600
-    ) -> Optional[str]:
+    ) -> str | None:
         async with self.session.client(
             "s3", endpoint_url=self.endpoint_url, config=self.s3_config
         ) as s3_client:
@@ -82,7 +81,7 @@ class S3StorageService(BaseStorageService):
 
     async def generate_presigned_url_for_upload(
         self, key: str, content_type: str, expiration: int = 3600
-    ) -> Optional[dict]:
+    ) -> dict | None:
         """
         异步生成用于 PUT 上传文件的预签名URL。
         相比POST，PUT方法更简单，客户端直接向此URL发起PUT请求即可。
@@ -106,7 +105,7 @@ class S3StorageService(BaseStorageService):
                 logger.exception(f"Failed to generate PUT upload URL for key '{key}'")
                 return None
 
-    async def download_stream(self, key: str) -> Optional[io.BytesIO]:
+    async def download_stream(self, key: str) -> io.BytesIO | None:
         async with self.session.client(
             "s3", endpoint_url=self.endpoint_url, config=self.s3_config
         ) as s3_client:
@@ -128,7 +127,7 @@ class S3StorageService(BaseStorageService):
                 return None
 
     async def upload_stream(
-        self, key: str, data: Union[bytes, io.BytesIO], content_type: str
+        self, key: str, data: bytes | io.BytesIO, content_type: str
     ) -> bool:
         async with self.session.client(
             "s3", endpoint_url=self.endpoint_url, config=self.s3_config
@@ -199,7 +198,7 @@ class COSStorageService(BaseStorageService):
 
     async def generate_presigned_url_for_download(
         self, key: str, expiration: int = 3600
-    ) -> Optional[str]:
+    ) -> str | None:
         """
         异步生成用于下载文件的预签名URL。
         """
@@ -219,7 +218,7 @@ class COSStorageService(BaseStorageService):
 
     async def generate_presigned_url_for_upload(
         self, key: str, content_type: str, expiration: int = 3600
-    ) -> Optional[dict]:
+    ) -> dict | None:
         """
         异步生成用于 PUT 上传文件的预签名URL。
         客户端在使用此URL进行PUT上传时，必须将请求头中的 Content-Type 设置为这里指定的 content_type。
@@ -240,7 +239,7 @@ class COSStorageService(BaseStorageService):
             )
             return None
 
-    async def download_stream(self, key: str) -> Optional[io.BytesIO]:
+    async def download_stream(self, key: str) -> io.BytesIO | None:
         """
         异步下载文件并返回一个内存中的字节流。
         """
@@ -260,7 +259,7 @@ class COSStorageService(BaseStorageService):
             return None
 
     async def upload_stream(
-        self, key: str, data: Union[bytes, io.BytesIO], content_type: str
+        self, key: str, data: bytes | io.BytesIO, content_type: str
     ) -> bool:
         """
         异步从字节流或bytes对象上传文件。
@@ -297,7 +296,7 @@ class COSStorageService(BaseStorageService):
 
 
 class StorageFactory:
-    _services: Dict[str, Type[BaseStorageService]] = {
+    _services: dict[str, type[BaseStorageService]] = {
         "s3": S3StorageService,
         "cos": COSStorageService,
     }

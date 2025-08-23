@@ -7,7 +7,6 @@ from app.models import User
 from app.schemas import UserCreate, UserUpdate
 from app.services.user_service import UserService
 
-
 # 使用此标记，pytest-asyncio 插件会自动处理文件中的所有异步测试函数
 # pytestmark = pytest.mark.asyncio
 pytestmark = pytest.mark.anyio

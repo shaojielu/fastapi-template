@@ -1,7 +1,8 @@
 # tests/services/test_storage.py
 import io
+from unittest.mock import AsyncMock, MagicMock
+
 import pytest
-from unittest.mock import MagicMock, AsyncMock
 
 # 模拟 botocore 的异常，因为 aioboto3 会重新抛出它们
 from botocore.exceptions import ClientError
@@ -10,13 +11,12 @@ from botocore.exceptions import ClientError
 from qcloud_cos.cos_exception import CosServiceError
 
 from app.providers.storage import (
-    S3StorageService,
     COSStorageService,
+    S3StorageService,
     StorageFactory,
 )
 
 # 从 conftest.py 导入我们的 fixture
-from tests.conftest import MockSettings
 
 # 将测试标记为 anyio，以便可以 `await`
 pytestmark = pytest.mark.anyio

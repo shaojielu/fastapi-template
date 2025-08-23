@@ -1,11 +1,11 @@
 import uuid
-from typing import Generic, TypeVar, Type
-from abc import ABC, abstractmethod
+from abc import ABC
+from typing import Generic, TypeVar
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models import User, Base  # 假设您的模型都继承自一个共同的 Base
+from app.models import Base, User  # 假设您的模型都继承自一个共同的 Base
 
 # 创建一个类型变量，用于表示 SQLAlchemy 模型
 ModelType = TypeVar("ModelType", bound=Base)
@@ -14,7 +14,7 @@ ModelType = TypeVar("ModelType", bound=Base)
 class BaseRepository(Generic[ModelType], ABC):
     """一个通用的、与具体模型无关的 Repository 基类。"""
 
-    def __init__(self, model: Type[ModelType], session: AsyncSession):
+    def __init__(self, model: type[ModelType], session: AsyncSession):
         """
         初始化 Repository。
 

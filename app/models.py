@@ -1,21 +1,18 @@
-import uuid
 import datetime
-from typing import List, Optional, Dict
+import uuid
 
 from sqlalchemy import (
-    ForeignKey,
-    String,
-    DateTime,
-    func,
     Boolean,
+    DateTime,
+    String,
+    func,
 )
+from sqlalchemy.dialects.postgresql import UUID as PG_UUID
 from sqlalchemy.orm import (
     DeclarativeBase,
     Mapped,
     mapped_column,
-    relationship,
 )
-from sqlalchemy.dialects.postgresql import UUID as PG_UUID
 
 
 class Base(DeclarativeBase):

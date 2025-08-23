@@ -2,7 +2,7 @@ import uuid
 
 from fastapi import APIRouter, HTTPException, status
 
-from app.api.deps import UserServiceDep, CurrentActiveUserDep
+from app.api.deps import CurrentActiveUserDep, UserServiceDep
 from app.schemas import UserCreate, UserPublic, UserUpdate
 
 router = APIRouter()
@@ -57,7 +57,7 @@ async def update_user(
             user_id=user_id, user_update=user_update
         )
         return updated_user
-    except Exception as e:
+    except Exception:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST, detail="更新用户异常"
         )

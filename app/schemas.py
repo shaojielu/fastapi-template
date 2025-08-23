@@ -1,8 +1,7 @@
 import uuid
-from typing import Optional
 from datetime import datetime
 
-from pydantic import BaseModel, Field, EmailStr, ConfigDict
+from pydantic import BaseModel, ConfigDict, EmailStr, Field
 
 
 class BaseSchema(BaseModel):
@@ -43,11 +42,11 @@ class UserCreate(UserBase):
 class UserUpdate(BaseModel):
     """更新用户时可选的数据"""
 
-    full_name: Optional[str] = None
-    email: Optional[EmailStr] = Field(None, description="用户邮箱，作为登录标识。")
-    password: Optional[str] = Field(None, min_length=8, description="新的用户密码。")
-    is_active: Optional[bool] = Field(None, description="是否激活用户。")
-    updated_at: Optional[datetime] = Field(None)
+    full_name: str | None = None
+    email: EmailStr | None = Field(None, description="用户邮箱，作为登录标识。")
+    password: str | None = Field(None, min_length=8, description="新的用户密码。")
+    is_active: bool | None = Field(None, description="是否激活用户。")
+    updated_at: datetime | None = Field(None)
 
 
 class UserPublic(UserBase, BaseSchema):

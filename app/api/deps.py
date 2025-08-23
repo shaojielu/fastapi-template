@@ -1,20 +1,19 @@
 from typing import Annotated
 
 import jwt
-from jwt.exceptions import InvalidTokenError
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
-from sqlalchemy.ext.asyncio import AsyncSession
+from jwt.exceptions import InvalidTokenError
 from pydantic import ValidationError
+from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.db import get_db
 from app.core.config import settings
+from app.core.db import get_db
 from app.models import User
-from app.schemas import TokenPayload
 from app.providers.storage import BaseStorageService, StorageFactory
 from app.repositories import UserRepositorie
+from app.schemas import TokenPayload
 from app.services.user_service import UserService
-
 
 DBSessionDep = Annotated[AsyncSession, Depends(get_db)]
 

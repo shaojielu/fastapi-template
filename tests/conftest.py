@@ -1,19 +1,18 @@
 # conftest.py
 
-from typing import AsyncGenerator
+from collections.abc import AsyncGenerator
 
 import pytest
 from httpx import ASGITransport, AsyncClient  # 导入 AsyncClient 和 ASGITransport
-from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
 from app.api.deps import get_db
 from app.api.main import app
-from app.repositories import UserRepositorie
-from app.services.user_service import UserService
+from app.core.config import settings
 from app.models import Base, User
+from app.repositories import UserRepositorie
 from app.schemas import UserCreate
-from app.core.config import settings, Settings
-
+from app.services.user_service import UserService
 
 pytestmark = pytest.mark.anyio
 
