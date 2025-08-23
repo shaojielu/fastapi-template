@@ -1,4 +1,5 @@
 import secrets
+import os
 
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -71,7 +72,9 @@ class Settings(BaseSettings):
     LOG_FILE: str = Field("logs/run.log", description="Path to the log file")
 
 
-# 创建一个全局可用的配置实例
-settings = Settings()
+if os.getenv("TESTING") == "1":
+    settings = Settings(_env_file=".env.example")
+else:
+    settings = Settings()
 if __name__ == "__main__":
     print(settings)
