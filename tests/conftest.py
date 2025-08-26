@@ -3,7 +3,7 @@
 from collections.abc import AsyncGenerator
 
 import pytest
-from httpx import ASGITransport, AsyncClient  # 导入 AsyncClient 和 ASGITransport
+from httpx import ASGITransport, AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
 from app.api.deps import get_db
@@ -23,7 +23,6 @@ TestingSessionLocal = async_sessionmaker(
 )
 
 
-# --- Fixture 定义 ---
 @pytest.fixture
 def anyio_backend():
     """
@@ -46,6 +45,25 @@ async def get_test_db() -> AsyncGenerator[AsyncSession, None]:
 
 
 @pytest.fixture(scope="function")
+async def client(get_test_db: AsyncSession) -> AsyncGenerator[AsyncClient, None]:
+    """
+    提供一个 httpx.AsyncClient，用于进行异步 API 测试。
+    """
+
+    async def override_get_db() -> AsyncGenerator[AsyncSession, None]:
+        yield get_test_db
+
+    app.dependency_overrides[get_db] = override_get_db
+
+    async with AsyncClient(
+        transport=ASGITransport(app=app), base_url="http://test"
+    ) as test_client:
+        yield test_client
+
+    app.dependency_overrides.clear()
+
+
+@pytest.fixture(scope="function")
 def user_service(get_test_db: AsyncSession) -> UserService:
     user_repo = UserRepositorie(session=get_test_db)
     user_service = UserService(user_repo=user_repo, session=get_test_db)
@@ -61,37 +79,6 @@ async def existing_user(user_service: UserService) -> User:
     )
     created_user = await user_service.create_user(user_create_data)
     return created_user
-
-
-@pytest.fixture(scope="function")
-async def another_user(user_service: UserService) -> User:
-    user_create_data = UserCreate(
-        full_name="Another Test User",
-        email="another@example.com",
-        password="a-plain-password-for-another",
-    )
-    created_user = await user_service.create_user(user_create_data)
-    return created_user
-
-
-@pytest.fixture(scope="function")
-async def client(get_test_db: AsyncSession) -> AsyncGenerator[AsyncClient, None]:
-    """
-    提供一个 httpx.AsyncClient，用于进行异步 API 测试。
-    """
-
-    async def override_get_db() -> AsyncGenerator[AsyncSession, None]:
-        yield get_test_db
-
-    app.dependency_overrides[get_db] = override_get_db
-
-    # 使用 AsyncClient 和 ASGITransport
-    async with AsyncClient(
-        transport=ASGITransport(app=app), base_url="http://test"
-    ) as test_client:
-        yield test_client
-
-    app.dependency_overrides.clear()
 
 
 @pytest.fixture(scope="function")
@@ -116,6 +103,17 @@ async def auth_headers(client: AsyncClient, existing_user: User) -> dict[str, st
     access_token = token_data["access_token"]
 
     return {"Authorization": f"Bearer {access_token}"}
+
+
+@pytest.fixture(scope="function")
+async def another_user(user_service: UserService) -> User:
+    user_create_data = UserCreate(
+        full_name="Another Test User",
+        email="another@example.com",
+        password="a-plain-password-for-another",
+    )
+    created_user = await user_service.create_user(user_create_data)
+    return created_user
 
 
 class MockSettings:

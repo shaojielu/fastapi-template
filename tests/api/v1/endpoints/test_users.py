@@ -82,15 +82,15 @@ async def test_update_user(
     assert updated_user["email"] == existing_user.email
 
 
-# 【修改】改为 async def
 async def test_update_other_user_not_allowed(
     client: AsyncClient, another_user: User, auth_headers: dict[str, str]
 ):
     """
     测试一个用户不能更新另一个用户的信息。
     """
+
     update_data = {"full_name": "Unauthorized Update"}
-    # 【修改】使用 await
+
     response = await client.put(
         def_url(f"/users/{another_user.id}"),
         json=update_data,

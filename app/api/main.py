@@ -6,10 +6,12 @@ from fastapi.routing import APIRoute
 
 from app.api.v1.api_v1 import api_router
 from app.core.config import settings
+from app.core.db import init_db
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    await init_db()
     yield
 
 
