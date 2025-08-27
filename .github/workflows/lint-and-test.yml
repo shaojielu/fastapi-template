@@ -57,7 +57,7 @@ jobs:
       - name: Run tests
         env:
           SQLALCHEMY_DATABASE_URI: "postgresql+asyncpg://postgres:postgres@postgres:5432/demo_db"
-          TEST_DATABASE_URI: "postgresql+asyncpg://postgres:postgres@localhost:${{ job.services.postgres.ports['5432'] }}/test_db"
+          TEST_DATABASE_URI: "postgresql+asyncpg://postgres:postgres@localhost:5433/test_db"
           CELERY_BROKER: "memory://"
           CELERY_BACKEND: "rpc://"
           STORAGE_PROVIDER: "s3"
@@ -73,6 +73,7 @@ jobs:
           ACCESS_TOKEN_EXPIRE_MINUTES: "30"
         run: |
           source "$HOME/.cargo/env"
+          export TEST_DATABASE_URI="postgresql+asyncpg://postgres:postgres@localhost:${{ job.services.postgres.ports['5432'] }}/testdb"
           uv run pytest --html=pytest-report.html --self-contained-html
       - name: Upload test report
         # `if: always()` 确保无论测试成功还是失败，报告都会被上传

@@ -46,9 +46,6 @@ def anyio_backend():
     return "asyncio"
 
 
-# TEST_DATABASE_URL = "postgresql+asyncpg://postgres:postgres@localhost:5433/test_db"
-
-
 # 1. 创建一个 session 级别的 engine fixture
 @pytest.fixture(scope="session")
 async def db_engine():
