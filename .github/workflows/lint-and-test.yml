@@ -57,7 +57,7 @@ jobs:
       - name: Run tests
         env:
           SQLALCHEMY_DATABASE_URI: ""
-          TEST_DATABASE_URL: "postgresql+asyncpg://postgres:postgres@localhost:${{ job.services.postgres.ports[5432] }}/testdb"
+          TEST_DATABASE_URI: "postgresql+asyncpg://postgres:postgres@localhost:${{ job.services.postgres.ports[5432] }}/testdb"
           CELERY_BROKER: "memory://"
           CELERY_BACKEND: "rpc://"
           STORAGE_PROVIDER: "s3"
