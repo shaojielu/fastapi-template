@@ -16,7 +16,7 @@ jobs:
         env:
           POSTGRES_USER: postgres
           POSTGRES_PASSWORD: postgres
-          POSTGRES_DB: testdb           
+          POSTGRES_DB: test_db           
         options: >-
           --health-cmd pg_isready
           --health-interval 10s
@@ -57,7 +57,7 @@ jobs:
       - name: Run tests
         env:
           SQLALCHEMY_DATABASE_URI: "postgresql+asyncpg://postgres:postgres@postgres:5432/demo_db"
-          TEST_DATABASE_URI: "postgresql+asyncpg://postgres:postgres@postgres:5432/testdb"
+          TEST_DATABASE_URI: "postgresql+asyncpg://postgres:postgres@localhost:${{ job.services.postgres.ports['5432'] }}/test_db"
           CELERY_BROKER: "memory://"
           CELERY_BACKEND: "rpc://"
           STORAGE_PROVIDER: "s3"
