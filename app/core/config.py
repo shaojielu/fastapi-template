@@ -38,6 +38,7 @@ class Settings(BaseSettings):
     # 默认使用 PostgreSQL，请在 .env 文件中覆盖此配置
     # 示例: SQLALCHEMY_DATABASE_URI=postgresql+asyncpg://user:password@host:port/db
     SQLALCHEMY_DATABASE_URI: str
+    TEST_DATABASE_URL: str
     ALEMBIC_DATABASE_URI: str | None = None  # 可选，单独指定 Alembic 使用的数据库 URL
     DB_ECHO: bool = False  # Set to True to enable SQLAlchemy query logging (for development/debugging)
 

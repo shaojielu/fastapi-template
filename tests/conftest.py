@@ -45,13 +45,17 @@ def anyio_backend():
     """强制所有 anyio 测试都使用 asyncio 后端。"""
     return "asyncio"
 
+
 TEST_DATABASE_URL = "postgresql+asyncpg://postgres:postgres@localhost:5433/test_db"
+
+
 # 1. 创建一个 session 级别的 engine fixture
 @pytest.fixture(scope="session")
 async def db_engine():
     engine = create_async_engine(TEST_DATABASE_URL, poolclass=NullPool)
     yield engine
     await engine.dispose()
+
 
 # 2. 创建一个 session 级别的 fixture 来管理数据库表
 @pytest.fixture(scope="session", autouse=True)
@@ -61,6 +65,7 @@ async def create_db_tables(db_engine):
     yield
     async with db_engine.begin() as conn:
         await conn.run_sync(Base.metadata.drop_all)
+
 
 # 3. 事务中运行并自动回滚
 @pytest.fixture(scope="function")
