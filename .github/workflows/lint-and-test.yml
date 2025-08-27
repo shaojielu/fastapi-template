@@ -10,6 +10,19 @@ on:
 jobs:
   lint-and-test:
     runs-on: ubuntu-latest
+    services:
+      postgres-test:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: testdb           
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
@@ -43,7 +56,7 @@ jobs:
       # 质量检查核心：运行单元测试并生成报告
       - name: Run tests
         env:
-          SQLALCHEMY_DATABASE_URI: "sqlite+aiosqlite:///./test.db"
+          SQLALCHEMY_DATABASE_URI: "postgresql+asyncpg://postgres:postgres@localhost:${{ job.services.postgres.ports[5432] }}/testdb"
           CELERY_BROKER: "memory://"
           CELERY_BACKEND: "rpc://"
           STORAGE_PROVIDER: "s3"

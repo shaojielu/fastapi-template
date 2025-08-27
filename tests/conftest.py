@@ -5,6 +5,7 @@ from collections.abc import AsyncGenerator
 import pytest
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+from sqlalchemy.pool import NullPool
 
 from app.api.deps import get_db
 from app.api.main import app
@@ -16,32 +17,71 @@ from app.services.user_service import UserService
 
 pytestmark = pytest.mark.anyio
 
-TEST_DATABASE_URL = "sqlite+aiosqlite:///:memory:"
-test_db_engine = create_async_engine(TEST_DATABASE_URL)
-TestingSessionLocal = async_sessionmaker(
-    test_db_engine, class_=AsyncSession, expire_on_commit=False
-)
+# TEST_DATABASE_URL = "sqlite+aiosqlite:///:memory:"
+# test_db_engine = create_async_engine(TEST_DATABASE_URL)
+
+# @pytest.fixture
+# def anyio_backend():
+#     """
+#     强制所有 anyio 测试都使用 asyncio 后端。
+#     这是因为 SQLAlchemy 的异步支持是基于 asyncio 构建的。
+#     """
+#     return "asyncio"
+
+# @pytest.fixture(scope="function")
+# async def get_test_db() -> AsyncGenerator[AsyncSession, None]:
+#     async with test_db_engine.begin() as conn:
+#         await conn.run_sync(Base.metadata.create_all)
+
+#     async with TestingSessionLocal() as session:
+#         yield session
+
+#     async with test_db_engine.begin() as conn:
+#         await conn.run_sync(Base.metadata.drop_all)
 
 
-@pytest.fixture
+@pytest.fixture(scope="session")
 def anyio_backend():
-    """
-    强制所有 anyio 测试都使用 asyncio 后端。
-    这是因为 SQLAlchemy 的异步支持是基于 asyncio 构建的。
-    """
+    """强制所有 anyio 测试都使用 asyncio 后端。"""
     return "asyncio"
 
+TEST_DATABASE_URL = "postgresql+asyncpg://postgres:postgres@localhost:5433/test_db"
+# 1. 创建一个 session 级别的 engine fixture
+@pytest.fixture(scope="session")
+async def db_engine():
+    engine = create_async_engine(TEST_DATABASE_URL, poolclass=NullPool)
+    yield engine
+    await engine.dispose()
 
-@pytest.fixture(scope="function")
-async def get_test_db() -> AsyncGenerator[AsyncSession, None]:
-    async with test_db_engine.begin() as conn:
+# 2. 创建一个 session 级别的 fixture 来管理数据库表
+@pytest.fixture(scope="session", autouse=True)
+async def create_db_tables(db_engine):
+    async with db_engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
-
-    async with TestingSessionLocal() as session:
-        yield session
-
-    async with test_db_engine.begin() as conn:
+    yield
+    async with db_engine.begin() as conn:
         await conn.run_sync(Base.metadata.drop_all)
+
+# 3. 事务中运行并自动回滚
+@pytest.fixture(scope="function")
+async def get_test_db(db_engine) -> AsyncGenerator[AsyncSession, None]:
+    """
+    提供一个运行在事务中的数据库会话。
+    测试结束后事务会自动回滚。
+    """
+    connection = await db_engine.connect()
+    transaction = await connection.begin()
+
+    TestingSessionLocal = async_sessionmaker(
+        bind=connection, expire_on_commit=False, class_=AsyncSession
+    )
+    session = TestingSessionLocal()
+
+    yield session
+
+    await session.close()
+    await transaction.rollback()
+    await connection.close()
 
 
 @pytest.fixture(scope="function")

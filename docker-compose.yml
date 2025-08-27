@@ -55,6 +55,27 @@ services:
       retries: 5
     networks:
       - app-network
+  
+  postgres-test:
+    image: "postgres:16-alpine"
+    restart: unless-stopped
+    env_file:
+      - .env # 注意：这里路径需要相对于 docker-compose.yml 文件
+    environment:
+      POSTGRES_DB: test_db
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgres_test_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d test_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - app-network
 
   # pgAdmin 服务
   pgadmin:
@@ -81,5 +102,6 @@ networks:
 
 volumes:
   postgres_data:
+  postgres_test_data:
   pgadmin_data:
   redis_data:
