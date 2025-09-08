@@ -18,3 +18,5 @@ assets/
 .ruff_cache
 .logs/
 *.log
+.gemini/
+gha-creds-*.json
