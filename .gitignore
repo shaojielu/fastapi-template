@@ -15,7 +15,8 @@ assets/
 .coverage
 
 .env
-.ruff_cache
+.ruff_cache/
+.gemini/
 .logs/
 *.log
 .gemini/
