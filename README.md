@@ -1,95 +1,242 @@
 # FastAPI Template
-一个功能齐全、可用于生产的 FastAPI 后端开发模板。
 
-## 功能特性
+A production-ready FastAPI template with user authentication, async database support, and modern Python tooling.
 
-- **现代 Web 框架**: 使用 [FastAPI](https://fastapi.tiangolo.com/) 构建，具备高性能和自动生成的 API 文档。
-- **Python 3.12+**: 利用现代 Python 的最新特性。
-- **依赖管理**: 使用 [uv](https://github.com/astral-sh/uv) 进行快速的依赖管理和虚拟环境控制。
-- **数据库 ORM**: 通过 [SQLAlchemy](https://www.sqlalchemy.org/) 与数据库进行异步交互。
-- **数据库迁移**: 使用 [Alembic](https://alembic.sqlalchemy.org/en/latest/) 管理数据库结构变更。
-- **容器化**: 提供了 `Dockerfile`，方便使用 [Docker](https://www.docker.com/) 进行部署。
-- **配置管理**: 通过 `pydantic-settings` 从环境变量 (`.env`) 中加载配置。
-- **测试**: 内置了基于 [Pytest](https://docs.pytest.org/en/latest/) 的测试套件。
+## Features
 
-## 开始使用
+- **FastAPI** - Modern, fast web framework for building APIs
+- **SQLAlchemy 2.0+** - Async ORM with PostgreSQL support
+- **JWT Authentication** - OAuth2 with Bearer tokens
+- **Pydantic v2** - Data validation and settings management
+- **Alembic** - Database migrations
+- **Docker** - Multi-stage build for optimized images
+- **Testing** - pytest with async support and coverage
+- **Code Quality** - mypy, ruff for linting and formatting
 
-### 环境要求
+## Project Structure
 
-- Python 3.12+
-- [uv](https://github.com/astral-sh/uv) (推荐)
-- [Docker](https://www.docker.com/) (可选, 用于容器化部署)
-
-### 安装与配置
-
-1.  **克隆代码库**
-    ```bash
-    git clone https://github.com/shaojielu/fastapi-template.git
-    ```
-
-2.  **创建并激活虚拟环境**
-    `uv` 会自动在 `.venv` 目录中创建虚拟环境。
-
-3.  **安装依赖**
-    使用 `uv` 同步 `pyproject.toml` 中定义的依赖。
-    ```bash
-    uv sync
-    ```
-
-4.  **配置环境变量**
-    项目启动需要一些环境变量。首先，复制一份环境文件范例：
-    ```bash
-    cp .env.example .env
-    ```
-    然后，根据你的需求修改 `.env` 文件中的配置，例如数据库连接信息、密钥等。
-
-### 运行服务
-
-提供了多种运行方式：
-
-1.  **开发模式 (热重载)**
-    此模式下，代码文件发生变更后服务会自动重启。
-    ```bash
-    uv run python -m app.api.main 
-    ```
-    或者
-    ```bash
-    uvicorn app.api.main:app --host 0.0.0.0 --port 8000 
-    ```
-
-2.  **生产模式**
-    推荐使用docker方式运行
-
-服务启动后，你可以访问以下地址：
-- **API 文档 (Swagger UI)**: [http://127.0.0.1:8000/docs](http://127.0.0.1:8000/docs)
-- **备选 API 文档 (ReDoc)**: [http://127.0.0.1:8000/redoc](http://127.0.0.1:8000/redoc)
-
-### 运行测试
-
-执行以下命令来运行所有测试：
-```bash
-pytest
+```
+app/
+├── api/                    # API layer
+│   ├── deps.py            # Dependency injection
+│   ├── main.py            # Router aggregation
+│   └── routes/            # Endpoint implementations
+├── core/                   # Core modules
+│   ├── config.py          # Configuration management
+│   ├── db.py              # Database setup
+│   ├── exceptions.py      # Custom exceptions
+│   ├── handlers.py        # Exception handlers
+│   ├── logging.py         # Logging configuration
+│   └── security.py        # Auth utilities
+├── models/                 # SQLAlchemy models
+├── schemas/                # Pydantic schemas
+├── services/               # Business logic layer
+└── utils/                  # Utilities
+tests/                      # Test suite
+scripts/                    # Development scripts
 ```
 
-### 数据库迁移
+## Quick Start
 
-本项目使用 Alembic 管理数据库结构。
+### Prerequisites
 
-1.  **生成新的迁移脚本**
-    当你修改了 `app/models.py` 中的 SQLAlchemy 模型后，运行此命令来自动生成迁移脚本。
-    ```bash
-    alembic revision --autogenerate -m "你的迁移描述"
-    ```
-    > 例如: `alembic revision --autogenerate -m "Add user table"`
+- Python 3.13+
+- PostgreSQL
+- [uv](https://github.com/astral-sh/uv) (recommended) or pip
 
-2.  **应用迁移**
-    将数据库更新到最新版本。
-    ```bash
-    alembic upgrade head
-    ```
+### Setup
 
-3.  **回滚迁移**
-    回滚一个版本：
-    ```bash
-    alembic downgrade -1
-    ```
+1. **Clone the repository**
+   ```bash
+   git clone <repository-url>
+   cd fastapi-template
+   ```
+
+2. **Create environment file**
+   ```bash
+   cp .env.example .env
+   # Edit .env with your configuration
+   ```
+
+3. **Install dependencies**
+   ```bash
+   # Using uv (recommended)
+   uv sync
+
+   # Or using pip
+   pip install -e .
+   ```
+
+4. **Start PostgreSQL**
+   ```bash
+   # Using Docker Compose
+   docker compose up -d postgres
+   ```
+
+5. **Run database migrations**
+   ```bash
+   alembic upgrade head
+   ```
+
+6. **Create initial data**
+   ```bash
+   python app/initial_data.py
+   ```
+
+7. **Start the server**
+   ```bash
+   # Development
+   fastapi dev app/main.py
+
+   # Production
+   uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers 4
+   ```
+
+8. **Open API docs**
+   - Swagger UI: http://localhost:8000/docs
+   - ReDoc: http://localhost:8000/redoc
+
+## Development
+
+### Running Tests
+
+```bash
+# Run all tests
+pytest
+
+# Run with coverage
+pytest --cov=app --cov-report=html
+
+# Or use the script
+./scripts/test.sh
+```
+
+### Code Quality
+
+```bash
+# Type checking
+mypy app
+
+# Linting
+ruff check app
+
+# Formatting
+ruff format app
+
+# Or use the scripts
+./scripts/lint.sh
+./scripts/format.sh
+```
+
+### Database Migrations
+
+```bash
+# Create a new migration
+alembic revision --autogenerate -m "Description"
+
+# Apply migrations
+alembic upgrade head
+
+# Rollback one migration
+alembic downgrade -1
+```
+
+## API Endpoints
+
+### Authentication
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| POST | `/api/v1/login/access-token` | Login and get access token |
+
+### Users
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/v1/users/` | List users (admin) |
+| POST | `/api/v1/users/` | Create user (admin) |
+| POST | `/api/v1/users/signup` | User registration |
+| GET | `/api/v1/users/me` | Get current user |
+| PATCH | `/api/v1/users/me` | Update current user |
+| PATCH | `/api/v1/users/me/password` | Update password |
+| DELETE | `/api/v1/users/me` | Delete current user |
+| GET | `/api/v1/users/{id}` | Get user by ID |
+| PATCH | `/api/v1/users/{id}` | Update user (admin) |
+| DELETE | `/api/v1/users/{id}` | Delete user (admin) |
+
+### Utilities
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/v1/utils/health-check/` | Health check |
+| POST | `/api/v1/utils/test-email/` | Send test email (admin) |
+
+## Docker
+
+### Build and Run
+
+```bash
+# Build the image
+docker build -t fastapi-template .
+
+# Run with Docker Compose
+docker compose up -d
+
+# View logs
+docker compose logs -f backend
+```
+
+### Production Deployment
+
+The Dockerfile uses a multi-stage build to create a minimal production image:
+
+1. Builder stage: Installs dependencies with uv
+2. Final stage: Copies only the virtual environment and app code
+
+## Configuration
+
+All configuration is done through environment variables. See `.env.example` for available options.
+
+### Key Settings
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `ENVIRONMENT` | local/staging/production | local |
+| `SECRET_KEY` | JWT signing key | (required) |
+| `POSTGRES_*` | Database connection | (required) |
+| `FIRST_SUPERUSER` | Initial admin email | (required) |
+| `FIRST_SUPERUSER_PASSWORD` | Initial admin password | (required) |
+
+## Architecture
+
+### Layered Architecture
+
+1. **API Layer** (`app/api/`) - HTTP handling, request/response
+2. **Service Layer** (`app/services/`) - Business logic
+3. **Data Layer** (`app/models/`) - Database models
+
+### Dependency Injection
+
+Uses FastAPI's `Depends` with `Annotated` type hints:
+
+```python
+UserServiceDep = Annotated[UserService, Depends(get_user_service)]
+
+@router.get("/users/me")
+async def get_me(user_service: UserServiceDep):
+    ...
+```
+
+### Exception Handling
+
+Custom exceptions in `app/core/exceptions.py` are automatically converted to HTTP responses by global handlers.
+
+```python
+raise NotFoundError("User not found")  # -> 404
+raise AlreadyExistsError("Email taken") # -> 409
+raise PermissionDeniedError("Not allowed") # -> 403
+```
+
+## License
+
+MIT

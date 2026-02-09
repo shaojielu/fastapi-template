@@ -1,77 +1,121 @@
 import secrets
+import warnings
+from typing import Annotated, Any, Literal, Self
 
-from pydantic import Field
+from pydantic import (
+    AnyUrl,
+    BeforeValidator,
+    EmailStr,
+    HttpUrl,
+    PostgresDsn,
+    computed_field,
+    model_validator,
+)
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
+def parse_cors(v: Any) -> list[str] | str:
+    if isinstance(v, str):
+        if v.startswith("["):
+            return v  # JSON 格式的字符串，由 Pydantic 处理
+        return [i.strip() for i in v.split(",") if i.strip()]
+    elif isinstance(v, list):
+        return v
+    raise ValueError(v)
+
+
 class Settings(BaseSettings):
-    """
-    应用配置模型，使用 pydantic-settings 从环境变量和 .env 文件中加载配置。
-    """
-
-    # model_config 用于指定配置加载的行为，例如 .env 文件的路径和编码
     model_config = SettingsConfigDict(
-        env_file=".env", env_file_encoding="utf-8", extra="ignore"
+        # Use top level .env file (one level above ./backend/)
+        env_file=".env",
+        env_ignore_empty=True,
+        extra="ignore",
     )
-
-    # --- Core Settings ---
-    PROJECT_NAME: str = "Demo"
-    SECRET_KEY: str = secrets.token_urlsafe(32)
     API_V1_STR: str = "/api/v1"
+    SECRET_KEY: str = secrets.token_urlsafe(32)
+    # 60 minutes * 24 hours * 8 days = 8 days
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24 * 8
+    FRONTEND_HOST: str = "http://localhost:5173"
+    ENVIRONMENT: Literal["local", "staging", "production"] = "local"
 
-    CELERY_BROKER: str
-    CELERY_BACKEND: str
+    BACKEND_CORS_ORIGINS: Annotated[
+        list[AnyUrl] | str, BeforeValidator(parse_cors)
+    ] = []
 
-    # --- Security Settings ---
-    ACCESS_TOKEN_EXPIRE_MINUTES: int = 11520
-    JWT_ALGORITHM: str = "HS256"
+    @computed_field
+    @property
+    def all_cors_origins(self) -> list[str]:
+        return [str(origin).rstrip("/") for origin in self.BACKEND_CORS_ORIGINS] + [
+            self.FRONTEND_HOST
+        ]
 
-    # --- CORS Settings ---
-    # 配置允许访问后端的来源，为了安全，在生产环境中应指定前端域名
-    # 示例: BACKEND_CORS_ORIGINS='["http://localhost:3000", "https://your-frontend.com"]'
-    BACKEND_CORS_ORIGINS: list[str] = Field(
-        default=["http://localhost", "http://localhost:3000", "http://127.0.0.1:3000"],
-        description="List of allowed CORS origins",
-    )
+    PROJECT_NAME: str
+    SENTRY_DSN: HttpUrl | None = None
+    POSTGRES_SERVER: str
+    POSTGRES_PORT: int = 5432
+    POSTGRES_USER: str
+    POSTGRES_PASSWORD: str = ""
+    POSTGRES_DB: str = ""
+    DB_ECHO: bool = False
 
-    # --- Database Settings ---
-    # 默认使用 PostgreSQL，请在 .env 文件中覆盖此配置
-    # 示例: SQLALCHEMY_DATABASE_URI=postgresql+asyncpg://user:password@host:port/db
-    SQLALCHEMY_DATABASE_URI: str
-    TEST_DATABASE_URI: str
-    ALEMBIC_DATABASE_URI: str | None = None  # 可选，单独指定 Alembic 使用的数据库 URL
-    DB_ECHO: bool = False  # Set to True to enable SQLAlchemy query logging (for development/debugging)
+    @computed_field
+    @property
+    def SQLALCHEMY_DATABASE_URI(self) -> PostgresDsn:
+        return PostgresDsn.build(
+            scheme="postgresql+asyncpg",
+            username=self.POSTGRES_USER,
+            password=self.POSTGRES_PASSWORD,
+            host=self.POSTGRES_SERVER,
+            port=self.POSTGRES_PORT,
+            path=self.POSTGRES_DB,
+        )
 
-    # --- Storage Settings ---
-    STORAGE_PROVIDER: str
-    # S3
-    S3_ACCESS_KEY: str = Field(
-        ..., description="REQUIRED: S3-compatible storage access key"
-    )
-    S3_SECRET_KEY: str = Field(
-        ..., description="REQUIRED: S3-compatible storage secret key"
-    )
-    S3_BUCKET_NAME: str
-    S3_ENDPOINT_URL: str | None = Field(
-        None, description="S3-compatible storage endpoint URL (e.g., for MinIO)"
-    )
-    S3_REGION_NAME: str | None = Field(
-        "auto", description="S3-compatible storage region"
-    )
+    SMTP_TLS: bool = True
+    SMTP_SSL: bool = False
+    SMTP_PORT: int = 587
+    SMTP_HOST: str | None = None
+    SMTP_USER: str | None = None
+    SMTP_PASSWORD: str | None = None
+    EMAILS_FROM_EMAIL: EmailStr | None = None
+    EMAILS_FROM_NAME: str | None = None
 
-    # COS
-    TENCENT_COS_REGION: str
-    TENCENT_COS_SECRET_ID: str
-    TENCENT_COS_SECRET_KEY: str
-    TENCENT_COS_BUCKET: str
+    @model_validator(mode="after")
+    def _set_default_emails_from(self) -> Self:
+        if not self.EMAILS_FROM_NAME:
+            self.EMAILS_FROM_NAME = self.PROJECT_NAME
+        return self
 
-    # --- Logging Settings ---
-    LOG_LEVEL: str = Field(
-        "INFO", description="Logging level (e.g., DEBUG, INFO, WARNING, ERROR)"
-    )
-    LOG_FILE: str = Field("logs/run.log", description="Path to the log file")
+    EMAIL_RESET_TOKEN_EXPIRE_HOURS: int = 48
+
+    @computed_field
+    @property
+    def emails_enabled(self) -> bool:
+        return bool(self.SMTP_HOST and self.EMAILS_FROM_EMAIL)
+
+    EMAIL_TEST_USER: EmailStr = "test@example.com"
+    FIRST_SUPERUSER: EmailStr
+    FIRST_SUPERUSER_PASSWORD: str
+
+    def _check_default_secret(self, var_name: str, value: str | None) -> None:
+        if value == "changethis":
+            message = (
+                f'The value of {var_name} is "changethis", '
+                "for security, please change it, at least for deployments."
+            )
+            if self.ENVIRONMENT == "local":
+                warnings.warn(message, stacklevel=1)
+            else:
+                raise ValueError(message)
+
+    @model_validator(mode="after")
+    def _enforce_non_default_secrets(self) -> Self:
+        self._check_default_secret("SECRET_KEY", self.SECRET_KEY)
+        self._check_default_secret("POSTGRES_PASSWORD", self.POSTGRES_PASSWORD)
+        self._check_default_secret(
+            "FIRST_SUPERUSER_PASSWORD", self.FIRST_SUPERUSER_PASSWORD
+        )
+
+        return self
 
 
 settings = Settings()
-if __name__ == "__main__":
-    print(settings)

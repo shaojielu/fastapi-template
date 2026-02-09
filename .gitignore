@@ -8,16 +8,41 @@ wheels/
 
 # Virtual environments
 .venv
+venv/
+env/
 
-# pytest
-assets/
-.pytest_cache
-.coverage
+# IDE
+.claude/
+.vscode/
+.idea/
+*.swp
+*.swo
 
-.env
+# Cache
+.mypy_cache/
+.pytest_cache/
 .ruff_cache/
-.gemini/
-.logs/
+
+# Test coverage
+htmlcov/
+.coverage
+.coverage.*
+coverage.xml
+*.cover
+
+# Environment files
+.env
+.env.local
+.env.*.local
+
+# Logs
 *.log
-.gemini/
-gha-creds-*.json
+logs/
+
+# Database
+*.db
+*.sqlite3
+
+# OS files
+.DS_Store
+Thumbs.db

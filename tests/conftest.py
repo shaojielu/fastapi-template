@@ -1,179 +1,77 @@
-# conftest.py
-
 from collections.abc import AsyncGenerator
 
 import pytest
 from httpx import ASGITransport, AsyncClient
-from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
-from sqlalchemy.pool import NullPool
+from sqlalchemy import delete
+from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.deps import get_db
-from app.api.main import app
 from app.core.config import settings
-from app.models import Base, User
-from app.repositories import UserRepositorie
-from app.schemas import UserCreate
-from app.services.user_service import UserService
+from app.core.db import async_session, engine
+from app.initial_data import init_db
+from app.main import app
+from app.models.base import Base
+from app.models.user import User
+from tests.utils.user import authentication_token_from_email
+from tests.utils.utils import get_superuser_token_headers
 
 pytestmark = pytest.mark.anyio
 
-# TEST_DATABASE_URL = "sqlite+aiosqlite:///:memory:"
-# test_db_engine = create_async_engine(TEST_DATABASE_URL)
-
-# @pytest.fixture
-# def anyio_backend():
-#     """
-#     强制所有 anyio 测试都使用 asyncio 后端。
-#     这是因为 SQLAlchemy 的异步支持是基于 asyncio 构建的。
-#     """
-#     return "asyncio"
-
-# @pytest.fixture(scope="function")
-# async def get_test_db() -> AsyncGenerator[AsyncSession, None]:
-#     async with test_db_engine.begin() as conn:
-#         await conn.run_sync(Base.metadata.create_all)
-
-#     async with TestingSessionLocal() as session:
-#         yield session
-
-#     async with test_db_engine.begin() as conn:
-#         await conn.run_sync(Base.metadata.drop_all)
-
 
 @pytest.fixture(scope="session")
-def anyio_backend():
-    """强制所有 anyio 测试都使用 asyncio 后端。"""
+def anyio_backend() -> str:
+    """为整个测试会话提供一个 asyncio 后端。"""
     return "asyncio"
 
 
-# 1. 创建一个 session 级别的 engine fixture
-@pytest.fixture(scope="session")
-async def db_engine():
-    engine = create_async_engine(settings.TEST_DATABASE_URI, poolclass=NullPool)
-    yield engine
-    await engine.dispose()
-
-
-# 2. 创建一个 session 级别的 fixture 来管理数据库表
 @pytest.fixture(scope="session", autouse=True)
-async def create_db_tables(db_engine):
-    async with db_engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
-    yield
-    async with db_engine.begin() as conn:
+async def setup_db() -> None:
+    """创建数据库表（会话级别，仅执行一次）"""
+    async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.drop_all)
-
-
-# 3. 事务中运行并自动回滚
-@pytest.fixture(scope="function")
-async def get_test_db(db_engine) -> AsyncGenerator[AsyncSession, None]:
-    """
-    提供一个运行在事务中的数据库会话。
-    测试结束后事务会自动回滚。
-    """
-    connection = await db_engine.connect()
-    transaction = await connection.begin()
-
-    TestingSessionLocal = async_sessionmaker(
-        bind=connection, expire_on_commit=False, class_=AsyncSession
-    )
-    session = TestingSessionLocal()
-
-    yield session
-
-    await session.close()
-    await transaction.rollback()
-    await connection.close()
+        await conn.run_sync(Base.metadata.create_all)
 
 
 @pytest.fixture(scope="function")
-async def client(get_test_db: AsyncSession) -> AsyncGenerator[AsyncClient, None]:
+async def db() -> AsyncGenerator[AsyncSession]:
     """
-    提供一个 httpx.AsyncClient，用于进行异步 API 测试。
+    获取数据库会话（函数级别）。
+    每个测试函数获得独立的数据库会话，测试结束后清理非超级用户数据。
     """
+    async with async_session() as session:
+        # 确保超级用户存在
+        await init_db(session)
+        yield session
+        # 回滚未提交的更改
+        await session.rollback()
+        # 只清理非超级用户的测试数据，保留超级用户以提高效率
+        await session.execute(
+            delete(User).where(User.email != settings.FIRST_SUPERUSER)
+        )
+        await session.commit()
 
-    async def override_get_db() -> AsyncGenerator[AsyncSession, None]:
-        yield get_test_db
 
-    app.dependency_overrides[get_db] = override_get_db
-
+@pytest.fixture(scope="function")
+async def client(db: AsyncSession) -> AsyncGenerator[AsyncClient]:
+    """获取测试客户端（函数级别），依赖db确保数据库已初始化"""
     async with AsyncClient(
         transport=ASGITransport(app=app), base_url="http://test"
-    ) as test_client:
-        yield test_client
-
-    app.dependency_overrides.clear()
+    ) as c:
+        yield c
 
 
 @pytest.fixture(scope="function")
-def user_service(get_test_db: AsyncSession) -> UserService:
-    user_repo = UserRepositorie(session=get_test_db)
-    user_service = UserService(user_repo=user_repo, session=get_test_db)
-    return user_service
+async def superuser_token_headers(
+    client: AsyncClient, db: AsyncSession
+) -> dict[str, str]:
+    """获取超级用户认证头（函数级别）"""
+    return await get_superuser_token_headers(client)
 
 
 @pytest.fixture(scope="function")
-async def existing_user(user_service: UserService) -> User:
-    user_create_data = UserCreate(
-        full_name="Existing User",
-        email="existing@example.com",
-        password="a-plain-password",
+async def normal_user_token_headers(
+    client: AsyncClient, db: AsyncSession
+) -> dict[str, str]:
+    """获取普通用户认证头（函数级别）"""
+    return await authentication_token_from_email(
+        client=client, email=settings.EMAIL_TEST_USER, db=db
     )
-    created_user = await user_service.create_user(user_create_data)
-    return created_user
-
-
-@pytest.fixture(scope="function")
-async def auth_headers(client: AsyncClient, existing_user: User) -> dict[str, str]:
-    """
-    Fixture，用于登录 existing_user 并返回认证头。
-    现在是异步的，并使用 AsyncClient。
-    """
-    login_data = {
-        "username": existing_user.email,
-        "password": "a-plain-password",
-    }
-
-    login_url = f"{settings.API_V1_STR}/login/access-token"
-    # 使用 await 进行异步请求
-    response = await client.post(login_url, data=login_data)
-
-    if response.status_code != 200:
-        raise Exception(f"Failed to log in user: {response.json()}")
-
-    token_data = response.json()
-    access_token = token_data["access_token"]
-
-    return {"Authorization": f"Bearer {access_token}"}
-
-
-@pytest.fixture(scope="function")
-async def another_user(user_service: UserService) -> User:
-    user_create_data = UserCreate(
-        full_name="Another Test User",
-        email="another@example.com",
-        password="a-plain-password-for-another",
-    )
-    created_user = await user_service.create_user(user_create_data)
-    return created_user
-
-
-class MockSettings:
-    S3_BUCKET_NAME = "test-bucket"
-    S3_ACCESS_KEY = "test-access-key"
-    S3_SECRET_KEY = "test-secret-key"
-    S3_REGION_NAME = "us-east-1"
-    S3_ENDPOINT_URL = "http://localhost:9000"
-
-    TENCENT_COS_BUCKET = "test-cos-bucket-123456789"
-    TENCENT_COS_REGION = "ap-guangzhou"
-    TENCENT_COS_SECRET_ID = "test-cos-secret-id"
-    TENCENT_COS_SECRET_KEY = "test-cos-secret-key"
-
-    STORAGE_PROVIDER = "s3"  # 默认提供商
-
-
-@pytest.fixture
-def mock_settings() -> MockSettings:
-    """提供一个用于测试的模拟配置对象。"""
-    return MockSettings()
